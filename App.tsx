@@ -15,11 +15,11 @@ import {
   XCircle,
   Mail,
   Share2,
-  // Fix: Added missing icon imports
   Users,
   ArrowRightLeft,
   ShieldCheck,
-  FileText
+  FileText,
+  Percent
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -29,9 +29,6 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Legend
 } from 'recharts';
 
 import Sidebar from './components/Sidebar';
@@ -48,7 +45,7 @@ import {
   TransactionType, 
   InvoiceStatus 
 } from './types';
-import { MOCK_CUSTOMERS, MOCK_ACCOUNTS } from './constants';
+import { MOCK_CUSTOMERS, MOCK_ACCOUNTS, APP_NAME } from './constants';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -74,14 +71,21 @@ const App: React.FC = () => {
     { name: 'Sun', amount: 3490 },
   ];
 
-  const handleCreateTransaction = (data: Partial<Transaction>) => {
+  const handleCreateTransaction = (data: { accountId: string, amount: number, type: TransactionType, gstRate: number }) => {
+    const taxableAmount = data.amount;
+    const gstAmount = (taxableAmount * data.gstRate) / 100;
+    const totalAmount = taxableAmount + gstAmount;
+
     const newTxn: Transaction = {
       id: `TXN-${Math.floor(Math.random() * 1000000)}`,
-      accountId: data.accountId!,
-      type: data.type!,
-      amount: data.amount!,
-      balanceAfter: 0, // In real app, calculate based on prev balance
-      description: data.description || 'Standard Transaction',
+      accountId: data.accountId,
+      type: data.type,
+      amount: totalAmount,
+      taxableAmount: taxableAmount,
+      gstRate: data.gstRate,
+      gstAmount: gstAmount,
+      balanceAfter: 0, 
+      description: `${data.type} (GST @ ${data.gstRate}%)`,
       createdAt: new Date().toISOString(),
       tellerId: 'T-001'
     };
@@ -91,11 +95,14 @@ const App: React.FC = () => {
     // Auto-generate invoice
     const newInvoice: Invoice = {
       id: `INV-${Math.floor(Math.random() * 1000000)}`,
-      invoiceNumber: `BR01-2024-${Math.floor(Math.random() * 99999)}`,
+      invoiceNumber: `PMB-2024-${Math.floor(Math.random() * 99999)}`,
       customerId: accounts.find(a => a.id === data.accountId)?.customerId || '',
-      accountId: data.accountId!,
+      accountId: data.accountId,
       transactionId: newTxn.id,
-      amount: data.amount!,
+      amount: totalAmount,
+      taxableAmount: taxableAmount,
+      gstRate: data.gstRate,
+      gstAmount: gstAmount,
       type: 'Transaction',
       status: InvoiceStatus.PAID,
       createdAt: new Date().toISOString()
@@ -106,40 +113,40 @@ const App: React.FC = () => {
   const renderDashboard = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-900">Dashboard Overview</h2>
+        <h2 className="text-2xl font-bold text-slate-900">{APP_NAME} Insights</h2>
         <div className="flex gap-2">
-           <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
-             <Download size={16} /> Export Report
+           <button className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors">
+             <Download size={16} /> Export GST Report
            </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          title="Total Deposits" 
+          title="Total Portfolio" 
           value={`₹${totalBalance.toLocaleString()}`} 
-          icon={<IndianRupee className="text-blue-600" size={24} />} 
-          color="bg-blue-100"
+          icon={<IndianRupee className="text-indigo-600" size={24} />} 
+          color="bg-indigo-100"
           trend={{ value: '12%', isUp: true }}
         />
         <StatCard 
-          title="Active Customers" 
+          title="Verified Members" 
           value={activeCustomers} 
           icon={<Users className="text-emerald-600" size={24} />} 
           color="bg-emerald-100"
           trend={{ value: '4.5%', isUp: true }}
         />
         <StatCard 
-          title="Monthly Txns" 
+          title="Monthly Activity" 
           value={monthTransactions} 
           icon={<ArrowRightLeft className="text-amber-600" size={24} />} 
           color="bg-amber-100"
           trend={{ value: '1.2%', isUp: false }}
         />
         <StatCard 
-          title="Pending KYC" 
-          value={customers.filter(c => c.kycStatus === KYCStatus.PENDING).length} 
-          icon={<ShieldCheck className="text-purple-600" size={24} />} 
+          title="Tax Liability" 
+          value={`₹${invoices.reduce((acc, curr) => acc + (curr.gstAmount || 0), 0).toLocaleString()}`} 
+          icon={<Percent className="text-purple-600" size={24} />} 
           color="bg-purple-100"
         />
       </div>
@@ -147,10 +154,10 @@ const App: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex justify-between items-center mb-6">
-             <h3 className="font-bold text-slate-800">Transaction Volume</h3>
-             <select className="text-sm border-slate-200 rounded-md focus:ring-blue-500">
-                <option>Last 7 Days</option>
-                <option>Last 30 Days</option>
+             <h3 className="font-bold text-slate-800">Operational Volume</h3>
+             <select className="text-sm border-slate-200 rounded-md focus:ring-indigo-500">
+                <option>Current Week</option>
+                <option>Current Month</option>
              </select>
           </div>
           <div className="h-72">
@@ -158,22 +165,22 @@ const App: React.FC = () => {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
                 <Tooltip />
-                <Area type="monotone" dataKey="amount" stroke="#2563eb" fillOpacity={1} fill="url(#colorAmount)" strokeWidth={2} />
+                <Area type="monotone" dataKey="amount" stroke="#4f46e5" fillOpacity={1} fill="url(#colorAmount)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h3 className="font-bold text-slate-800 mb-6">Recent Activity</h3>
+          <h3 className="font-bold text-slate-800 mb-6">Live Logs</h3>
           <div className="space-y-4">
             {transactions.slice(0, 5).map(txn => (
               <div key={txn.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 transition-colors">
@@ -186,30 +193,201 @@ const App: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <p className={`text-sm font-bold ${txn.type === TransactionType.DEPOSIT ? 'text-green-600' : 'text-slate-900'}`}>
-                    {txn.type === TransactionType.DEPOSIT ? '+' : '-'} ₹{txn.amount.toLocaleString()}
+                    ₹{txn.amount.toLocaleString()}
                   </p>
+                  {txn.gstAmount ? <p className="text-[10px] text-slate-400">Incl. GST</p> : null}
                 </div>
               </div>
             ))}
             {transactions.length === 0 && (
               <div className="text-center py-12">
                  <History className="mx-auto text-slate-200 mb-2" size={40} />
-                 <p className="text-sm text-slate-400">No recent transactions</p>
+                 <p className="text-sm text-slate-400">No recent logs found</p>
               </div>
             )}
           </div>
-          <button onClick={() => setActiveTab('transactions')} className="w-full mt-6 text-sm text-blue-600 font-bold hover:text-blue-700">View All Transactions</button>
+          <button onClick={() => setActiveTab('transactions')} className="w-full mt-6 text-sm text-indigo-600 font-bold hover:text-indigo-700">Audit All Transactions</button>
         </div>
       </div>
     </div>
   );
 
+  const renderTransactions = () => {
+    const [txnAmount, setTxnAmount] = useState('');
+    const [txnAccount, setTxnAccount] = useState('');
+    const [txnType, setTxnType] = useState(TransactionType.DEPOSIT);
+    const [gstRate, setGstRate] = useState(0);
+
+    const calculatedGst = (parseFloat(txnAmount || '0') * gstRate) / 100;
+    const totalWithGst = parseFloat(txnAmount || '0') + calculatedGst;
+
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 space-y-6">
+           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900 mb-4">Post Transaction</h3>
+              <div className="space-y-4">
+                 <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Account Number</label>
+                    <select 
+                      value={txnAccount}
+                      onChange={(e) => setTxnAccount(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                    >
+                       <option value="">Select Member Account</option>
+                       {accounts.map(acc => (
+                         <option key={acc.id} value={acc.id}>{acc.accountNumber} ({acc.accountType})</option>
+                       ))}
+                    </select>
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Transaction Category</label>
+                    <div className="grid grid-cols-2 gap-2">
+                       <button 
+                         onClick={() => setTxnType(TransactionType.DEPOSIT)}
+                         className={`py-2 text-xs font-bold rounded-lg border transition-all ${txnType === TransactionType.DEPOSIT ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-600 border-slate-200'}`}
+                       >Credit</button>
+                       <button 
+                         onClick={() => setTxnType(TransactionType.WITHDRAWAL)}
+                         className={`py-2 text-xs font-bold rounded-lg border transition-all ${txnType === TransactionType.WITHDRAWAL ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-600 border-slate-200'}`}
+                       >Debit</button>
+                    </div>
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Base Amount (₹)</label>
+                    <div className="relative">
+                      <IndianRupee size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        type="number" 
+                        value={txnAmount}
+                        onChange={(e) => setTxnAmount(e.target.value)}
+                        placeholder="0.00" 
+                        className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-bold" 
+                      />
+                    </div>
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">GST Selection</label>
+                    <select 
+                      value={gstRate}
+                      onChange={(e) => setGstRate(parseInt(e.target.value))}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                    >
+                       <option value="0">0% (GST Exempt)</option>
+                       <option value="5">5% GST</option>
+                       <option value="12">12% GST</option>
+                       <option value="18">18% GST</option>
+                    </select>
+                 </div>
+                 
+                 {parseFloat(txnAmount) > 0 && (
+                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Taxable Value:</span>
+                        <span className="font-bold text-slate-700">₹{parseFloat(txnAmount).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">GST Amount ({gstRate}%):</span>
+                        <span className="font-bold text-slate-700">₹{calculatedGst.toLocaleString()}</span>
+                      </div>
+                      <div className="h-px bg-slate-200 my-1"></div>
+                      <div className="flex justify-between text-sm">
+                        <span className="font-bold text-indigo-700 uppercase">Grand Total:</span>
+                        <span className="font-extrabold text-indigo-700">₹{totalWithGst.toLocaleString()}</span>
+                      </div>
+                   </div>
+                 )}
+
+                 <button 
+                   onClick={() => {
+                     handleCreateTransaction({
+                       accountId: txnAccount,
+                       amount: parseFloat(txnAmount),
+                       type: txnType,
+                       gstRate: gstRate
+                     });
+                     setTxnAmount('');
+                     setGstRate(0);
+                   }}
+                   disabled={!txnAccount || !txnAmount}
+                   className="w-full py-3 bg-indigo-900 text-white rounded-lg font-bold hover:bg-indigo-800 transition-colors disabled:opacity-50"
+                 >
+                   Confirm & Process
+                 </button>
+              </div>
+           </div>
+           
+           <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3">
+              <AlertCircle className="text-amber-600 shrink-0" size={20} />
+              <div>
+                <p className="text-sm font-bold text-amber-800">Compliance Notice</p>
+                <p className="text-xs text-amber-700 leading-relaxed">Ensure HSN/SAC codes are correctly mapped for GST compliance.</p>
+              </div>
+           </div>
+        </div>
+
+        <div className="lg:col-span-2 space-y-6">
+           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+             <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="font-bold text-slate-800">Branch Ledger</h3>
+                <button className="text-sm text-indigo-600 font-bold hover:underline">Download Master Sheet</button>
+             </div>
+             <table className="w-full text-left">
+               <thead className="bg-slate-50 text-slate-500 text-[10px] font-extrabold uppercase tracking-widest">
+                  <tr>
+                    <th className="px-6 py-4">Timestamp</th>
+                    <th className="px-6 py-4">Account</th>
+                    <th className="px-6 py-4 text-right">Taxable (₹)</th>
+                    <th className="px-6 py-4 text-right">GST (₹)</th>
+                    <th className="px-6 py-4 text-right">Total (₹)</th>
+                    <th className="px-6 py-4 text-center">Invoice</th>
+                  </tr>
+               </thead>
+               <tbody className="divide-y divide-slate-100 text-sm">
+                  {transactions.map(txn => (
+                    <tr key={txn.id} className="hover:bg-slate-50">
+                       <td className="px-6 py-4 text-slate-500 font-mono text-xs">{new Date(txn.createdAt).toLocaleTimeString()}</td>
+                       <td className="px-6 py-4 font-mono text-xs text-slate-900">{txn.accountId}</td>
+                       <td className="px-6 py-4 text-right text-slate-600">{(txn.taxableAmount || 0).toLocaleString()}</td>
+                       <td className="px-6 py-4 text-right text-slate-600">{(txn.gstAmount || 0).toLocaleString()}</td>
+                       <td className={`px-6 py-4 text-right font-bold text-slate-900`}>
+                         {txn.amount.toLocaleString()}
+                       </td>
+                       <td className="px-6 py-4 text-center">
+                          <button 
+                            onClick={() => {
+                              const inv = invoices.find(i => i.transactionId === txn.id);
+                              if (inv) {
+                                setSelectedInvoice(inv);
+                                setActiveTab('invoice_preview');
+                              }
+                            }}
+                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                          >
+                             <FileText size={16} />
+                          </button>
+                       </td>
+                    </tr>
+                  ))}
+                  {transactions.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-20 text-slate-400 font-medium">No ledger entries available.</td>
+                    </tr>
+                  )}
+               </tbody>
+             </table>
+           </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderCustomers = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-900">Customer Management</h2>
-        <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-shadow">
-          <Plus size={18} /> Add New Customer
+        <h2 className="text-2xl font-bold text-slate-900">Member Directory</h2>
+        <button className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-shadow">
+          <Plus size={18} /> Register Member
         </button>
       </div>
 
@@ -217,33 +395,31 @@ const App: React.FC = () => {
         <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-4 items-center justify-between">
            <div className="relative flex-1 min-w-[300px]">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-             <input type="text" placeholder="Search by name, phone or ID..." className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm" />
+             <input type="text" placeholder="Search by name, phone or ID..." className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm" />
            </div>
            <div className="flex gap-2">
              <button className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium hover:bg-white text-slate-600">
-               <Filter size={16} /> Filters
+               <Filter size={16} /> Advanced Filter
              </button>
            </div>
         </div>
         <table className="w-full text-left">
           <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
             <tr>
-              <th className="px-6 py-4">Customer ID</th>
+              <th className="px-6 py-4">ID</th>
               <th className="px-6 py-4">Name</th>
-              <th className="px-6 py-4">Phone / Email</th>
+              <th className="px-6 py-4">Contact</th>
               <th className="px-6 py-4">KYC Status</th>
-              <th className="px-6 py-4">Registration</th>
               <th className="px-6 py-4 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {customers.map(customer => (
               <tr key={customer.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-4 font-mono text-xs font-bold text-blue-600">{customer.id}</td>
+                <td className="px-6 py-4 font-mono text-xs font-bold text-indigo-600">{customer.id}</td>
                 <td className="px-6 py-4 font-semibold text-slate-900">{customer.name}</td>
                 <td className="px-6 py-4">
                   <p className="text-sm text-slate-700">{customer.phone}</p>
-                  <p className="text-xs text-slate-400">{customer.email}</p>
                 </td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -253,7 +429,6 @@ const App: React.FC = () => {
                     {customer.kycStatus}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-slate-500">{new Date(customer.createdAt).toLocaleDateString()}</td>
                 <td className="px-6 py-4 text-center">
                   <button className="p-2 text-slate-400 hover:text-slate-600"><MoreVertical size={18} /></button>
                 </td>
@@ -265,140 +440,10 @@ const App: React.FC = () => {
     </div>
   );
 
-  const renderTransactions = () => {
-    const [txnAmount, setTxnAmount] = useState('');
-    const [txnAccount, setTxnAccount] = useState('');
-    const [txnType, setTxnType] = useState(TransactionType.DEPOSIT);
-
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-6">
-           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">Post Transaction</h3>
-              <div className="space-y-4">
-                 <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Account</label>
-                    <select 
-                      value={txnAccount}
-                      onChange={(e) => setTxnAccount(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                    >
-                       <option value="">Select Account</option>
-                       {accounts.map(acc => (
-                         <option key={acc.id} value={acc.id}>{acc.accountNumber} - {acc.accountType}</option>
-                       ))}
-                    </select>
-                 </div>
-                 <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Type</label>
-                    <div className="grid grid-cols-2 gap-2">
-                       <button 
-                         onClick={() => setTxnType(TransactionType.DEPOSIT)}
-                         className={`py-2 text-xs font-bold rounded-lg border transition-all ${txnType === TransactionType.DEPOSIT ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-600 border-slate-200'}`}
-                       >Deposit</button>
-                       <button 
-                         onClick={() => setTxnType(TransactionType.WITHDRAWAL)}
-                         className={`py-2 text-xs font-bold rounded-lg border transition-all ${txnType === TransactionType.WITHDRAWAL ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-600 border-slate-200'}`}
-                       >Withdraw</button>
-                    </div>
-                 </div>
-                 <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Amount (₹)</label>
-                    <div className="relative">
-                      <IndianRupee size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input 
-                        type="number" 
-                        value={txnAmount}
-                        onChange={(e) => setTxnAmount(e.target.value)}
-                        placeholder="0.00" 
-                        className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-bold" 
-                      />
-                    </div>
-                 </div>
-                 <button 
-                   onClick={() => {
-                     handleCreateTransaction({
-                       accountId: txnAccount,
-                       amount: parseFloat(txnAmount),
-                       type: txnType
-                     });
-                     setTxnAmount('');
-                   }}
-                   disabled={!txnAccount || !txnAmount}
-                   className="w-full py-3 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 transition-colors disabled:opacity-50"
-                 >
-                   Confirm Transaction
-                 </button>
-              </div>
-           </div>
-           
-           <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3">
-              <AlertCircle className="text-amber-600 shrink-0" size={20} />
-              <div>
-                <p className="text-sm font-bold text-amber-800">Security Alert</p>
-                <p className="text-xs text-amber-700 leading-relaxed">Transactions exceeding ₹50,000 require manual manager approval and verified PAN document.</p>
-              </div>
-           </div>
-        </div>
-
-        <div className="lg:col-span-2 space-y-6">
-           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-             <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-bold text-slate-800">Transaction History</h3>
-                <button className="text-sm text-blue-600 font-bold hover:underline">Download PDF</button>
-             </div>
-             <table className="w-full text-left">
-               <thead className="bg-slate-50 text-slate-500 text-[10px] font-extrabold uppercase tracking-widest">
-                  <tr>
-                    <th className="px-6 py-4">Timestamp</th>
-                    <th className="px-6 py-4">Description</th>
-                    <th className="px-6 py-4">Account</th>
-                    <th className="px-6 py-4 text-right">Amount (₹)</th>
-                    <th className="px-6 py-4 text-center">Receipt</th>
-                  </tr>
-               </thead>
-               <tbody className="divide-y divide-slate-100 text-sm">
-                  {transactions.map(txn => (
-                    <tr key={txn.id} className="hover:bg-slate-50">
-                       <td className="px-6 py-4 text-slate-500">{new Date(txn.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
-                       <td className="px-6 py-4 font-medium text-slate-900">{txn.type}</td>
-                       <td className="px-6 py-4 font-mono text-xs">{txn.accountId}</td>
-                       <td className={`px-6 py-4 text-right font-bold ${txn.type === TransactionType.DEPOSIT ? 'text-green-600' : 'text-slate-900'}`}>
-                         {txn.type === TransactionType.DEPOSIT ? '+' : '-'} {txn.amount.toLocaleString()}
-                       </td>
-                       <td className="px-6 py-4 text-center">
-                          <button 
-                            onClick={() => {
-                              const inv = invoices.find(i => i.transactionId === txn.id);
-                              if (inv) {
-                                setSelectedInvoice(inv);
-                                setActiveTab('invoice_preview');
-                              }
-                            }}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
-                          >
-                             <FileText size={16} />
-                          </button>
-                       </td>
-                    </tr>
-                  ))}
-                  {transactions.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="text-center py-20 text-slate-400 font-medium">No transactions recorded yet.</td>
-                    </tr>
-                  )}
-               </tbody>
-             </table>
-           </div>
-        </div>
-      </div>
-    );
-  };
-
   const renderInvoices = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-900">Invoice Registry</h2>
+        <h2 className="text-2xl font-bold text-slate-900">GST Invoice Registry</h2>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -406,10 +451,10 @@ const App: React.FC = () => {
           <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
             <tr>
               <th className="px-6 py-4">Invoice #</th>
-              <th className="px-6 py-4">Type</th>
-              <th className="px-6 py-4">Amount</th>
+              <th className="px-6 py-4">Taxable</th>
+              <th className="px-6 py-4">GST Amt</th>
+              <th className="px-6 py-4">Total Amount</th>
               <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">Created At</th>
               <th className="px-6 py-4 text-right">Action</th>
             </tr>
           </thead>
@@ -417,9 +462,8 @@ const App: React.FC = () => {
             {invoices.map(inv => (
               <tr key={inv.id} className="hover:bg-slate-50">
                 <td className="px-6 py-4 font-mono text-xs font-bold">{inv.invoiceNumber}</td>
-                <td className="px-6 py-4">
-                   <span className="text-sm font-medium text-slate-700">{inv.type}</span>
-                </td>
+                <td className="px-6 py-4 text-sm">₹{(inv.taxableAmount || 0).toLocaleString()}</td>
+                <td className="px-6 py-4 text-sm">₹{(inv.gstAmount || 0).toLocaleString()}</td>
                 <td className="px-6 py-4 font-bold text-slate-900">₹{inv.amount.toLocaleString()}</td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -428,20 +472,19 @@ const App: React.FC = () => {
                     {inv.status}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-slate-500">{new Date(inv.createdAt).toLocaleDateString()}</td>
                 <td className="px-6 py-4 text-right">
                   <button 
                     onClick={() => {
                       setSelectedInvoice(inv);
                       setActiveTab('invoice_preview');
                     }}
-                    className="text-blue-600 font-bold hover:underline text-sm"
-                  >View</button>
+                    className="text-indigo-600 font-bold hover:underline text-sm"
+                  >View Tax Invoice</button>
                 </td>
               </tr>
             ))}
             {invoices.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-12 text-slate-400">No invoices found.</td></tr>
+              <tr><td colSpan={6} className="text-center py-12 text-slate-400">No generated invoices found.</td></tr>
             )}
           </tbody>
         </table>
@@ -462,20 +505,17 @@ const App: React.FC = () => {
             onClick={() => setActiveTab('invoices')}
             className="flex items-center gap-2 text-slate-500 font-bold hover:text-slate-900"
           >
-             <ArrowRightLeft size={18} className="rotate-180" /> Back to Invoices
+             <ArrowRightLeft size={18} className="rotate-180" /> Back to List
           </button>
           <div className="flex gap-3">
              <button className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold hover:bg-slate-200">
-               <Share2 size={18} /> WhatsApp
-             </button>
-             <button className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold hover:bg-slate-200">
-               <Mail size={18} /> Email
+               <Share2 size={18} /> Share WhatsApp
              </button>
              <button 
                onClick={() => window.print()}
-               className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20"
+               className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20"
              >
-               <Printer size={18} /> Print Invoice
+               <Printer size={18} /> Print Tax Invoice
              </button>
           </div>
         </div>
@@ -498,23 +538,23 @@ const App: React.FC = () => {
         currentRole={userRole} 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        onLogout={() => alert('Logout successful')} 
+        onLogout={() => alert('Logout from PMB Group successful')} 
       />
       
       <main className="flex-1 ml-64 p-8 no-print">
         {/* Top Header */}
         <header className="flex justify-between items-center mb-8">
            <div>
-              <p className="text-sm text-slate-500 font-medium">Welcome back,</p>
-              <h2 className="text-xl font-bold text-slate-900">Branch Administrator</h2>
+              <p className="text-sm text-slate-500 font-medium tracking-tight">PMB Group Internal System</p>
+              <h2 className="text-xl font-bold text-slate-900">Branch Portal</h2>
            </div>
            <div className="flex gap-4 items-center">
               <div className="text-right">
                  <p className="text-sm font-bold text-slate-900">Bangalore Central</p>
-                 <p className="text-xs text-slate-500">ID: BR-0101</p>
+                 <p className="text-xs text-slate-500 font-mono">PMB-BR-0101</p>
               </div>
-              <div className="h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md">
-                 AD
+              <div className="h-10 w-10 bg-indigo-700 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md">
+                 PM
               </div>
            </div>
         </header>
@@ -527,8 +567,8 @@ const App: React.FC = () => {
         {activeTab === 'audit' && (
           <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-300">
              <ShieldCheck size={48} className="mx-auto text-slate-200 mb-4" />
-             <h3 className="text-lg font-bold text-slate-800">Audit & Log Management</h3>
-             <p className="text-slate-500 text-sm">Real-time activity tracking is active for branch code BR-01.</p>
+             <h3 className="text-lg font-bold text-slate-800">Compliance Audit logs</h3>
+             <p className="text-slate-500 text-sm">Security auditing is currently active for all GST-linked transactions.</p>
           </div>
         )}
       </main>

@@ -64,6 +64,9 @@ export interface Transaction {
   accountId: string;
   type: TransactionType;
   amount: number;
+  taxableAmount?: number;
+  gstRate?: number;
+  gstAmount?: number;
   balanceAfter: number;
   description: string;
   createdAt: string;
@@ -77,6 +80,9 @@ export interface Invoice {
   accountId: string;
   transactionId?: string;
   amount: number;
+  taxableAmount?: number;
+  gstRate?: number;
+  gstAmount?: number;
   type: 'Transaction' | 'Statement' | 'EMI' | 'Interest';
   status: InvoiceStatus;
   createdAt: string;

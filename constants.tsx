@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { UserRole, AccountType, KYCStatus } from './types';
 
-export const APP_NAME = "FinEdge Banking";
+export const APP_NAME = "PMB Group Banking";
 
 export const NAVIGATION_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, roles: [UserRole.SUPER_ADMIN, UserRole.BRANCH_ADMIN, UserRole.TELLER, UserRole.AUDITOR] },
@@ -31,6 +31,6 @@ export const MOCK_CUSTOMERS = [
 ];
 
 export const MOCK_ACCOUNTS = [
-  { id: 'ACC-101', customerId: 'CUST-001', accountNumber: '30001234567', accountType: AccountType.SAVINGS, balance: 45000.00, interestRate: 3.5, ifsc: 'FEDG000101', branchCode: 'BR-01', isLocked: false, createdAt: '2023-10-02' },
-  { id: 'ACC-102', customerId: 'CUST-002', accountNumber: '30009876543', accountType: AccountType.CURRENT, balance: 125000.50, interestRate: 0, ifsc: 'FEDG000101', branchCode: 'BR-01', isLocked: false, createdAt: '2023-11-16' },
+  { id: 'ACC-101', customerId: 'CUST-001', accountNumber: '30001234567', accountType: AccountType.SAVINGS, balance: 45000.00, interestRate: 3.5, ifsc: 'PMBG000101', branchCode: 'BR-01', isLocked: false, createdAt: '2023-10-02' },
+  { id: 'ACC-102', customerId: 'CUST-002', accountNumber: '30009876543', accountType: AccountType.CURRENT, balance: 125000.50, interestRate: 0, ifsc: 'PMBG000101', branchCode: 'BR-01', isLocked: false, createdAt: '2023-11-16' },
 ];
